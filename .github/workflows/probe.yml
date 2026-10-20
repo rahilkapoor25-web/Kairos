@@ -1,0 +1,30 @@
+# Temporary research probe (this sandbox can't reach Google hosts). Removed after use.
+name: probe
+on: push
+jobs:
+  probe:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: maven versions
+        run: |
+          for a in com/android/tools/build/gradle androidx/compose/compose-bom androidx/room/room-runtime androidx/work/work-runtime-ktx androidx/activity/activity-compose androidx/core/core-ktx androidx/lifecycle/lifecycle-runtime-compose androidx/lifecycle/lifecycle-viewmodel-compose com/google/ai/edge/litertlm/litertlm-android com/google/mediapipe/tasks-genai com/google/mlkit/genai-prompt androidx/compose/material/material-icons-extended; do
+            echo "== $a"; curl -s https://dl.google.com/dl/android/maven2/$a/maven-metadata.xml | grep -oE '<version>[^<]+' | sed 's/<version>//' | tail -15 | tr '\n' ' '; echo
+          done
+      - name: sdk on runner
+        run: ls $ANDROID_HOME/platforms $ANDROID_HOME/build-tools; java -version
+      - name: hf models
+        run: |
+          curl -s "https://huggingface.co/api/models?author=litert-community&limit=200" | python3 -c "import json,sys; [print(m['id'], m.get('gated'), m.get('downloads')) for m in json.load(sys.stdin)]"
+          for r in litert-community/Qwen2.5-1.5B-Instruct litert-community/Qwen3-1.7B litert-community/Qwen3-0.6B litert-community/SmolLM2-1.7B-Instruct litert-community/gemma-3-270m-it litert-community/Gemma3-1B-IT; do
+            echo "== $r"; curl -s "https://huggingface.co/api/models/$r" | python3 -c "import json,sys; d=json.load(sys.stdin); print('gated=',d.get('gated'),'license=',d.get('cardData',{}).get('license'))" || true
+            curl -s "https://huggingface.co/api/models/$r/tree/main" | python3 -c "import json,sys; [print(f['path'], f.get('size'), (f.get('lfs') or {}).get('oid')) for f in json.load(sys.stdin)]" || true
+          done
+      - name: vosk model
+        run: |
+          curl -sL -o v.zip https://alphacephei.com/vosk/models/vosk-model-small-en-us-0.15.zip && ls -l v.zip && sha256sum v.zip && unzip -l v.zip | head -30
+      - name: docs
+        run: |
+          for u in https://ai.google.dev/edge/litert-lm/android https://ai.google.dev/edge/litert-lm/overview https://ai.google.dev/edge/mediapipe/solutions/genai/llm_inference/android https://developers.google.com/ml-kit/genai/prompt/android/get-started https://developers.google.com/ml-kit/release-notes https://developer.android.com/build/releases/gradle-plugin https://developer.android.com/develop/background-work/services/fgs/service-types; do
+            echo "=================== $u"; curl -sL "$u" | python3 .github/probe/html2text.py | head -c 60000
+          done
